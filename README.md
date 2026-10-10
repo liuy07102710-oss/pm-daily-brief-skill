@@ -261,7 +261,7 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 ### 2. 用户画像加权来源（Step 2.5）
 默认读：
 - 最近 `daily-input/*.md`（你过去的报告）
-- 项目根 `*.md` / `*.html`（你的项目描述）
+- 两个项目根各下钻一层：`D:\Vibe_Project\*\*.{md,html}`（AI 产品项目）+ `D:\SYSU\实习\*\*.{md,html}`（求职/简历/JD 材料）
 
 改 Glob 根到你的工作区。**不要指向 `node_modules/` 或带敏感数据目录**——技能已显式跳 `.git/` `.env` credentials。
 
