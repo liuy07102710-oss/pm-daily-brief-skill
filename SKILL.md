@@ -76,7 +76,10 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
    - 提炼: 哪些主题连续多日上 Top? (e.g. agent 经济、context 工程、voice agent)
    - 提炼: 用户最近反复出现的关键词?
 
-2. **项目根快扫**: `Glob D:\hrdai\*.{md,html}` (限制根目录, 不递归, 不读 `.claude/` `.git/` `node_modules/`)。识别用户在做什么产品。
+2. **项目根快扫** (两个根, 各下钻一层):
+   - `Glob D:\Vibe_Project\*\*.{md,html}` — 用户的 AI 产品项目 (Ponder 购物 Agent / AskData Text2SQL / 经历库 / RAG 等), 识别在做什么产品
+   - `Glob D:\SYSU\实习\*\*.{md,html}` — 求职/简历/面试/JD 材料, 对"求职·HR·AI 岗位"主题加权
+   - 跳过 `.claude/` `.git/` `node_modules/` 等敏感/噪声目录
    - 文件名/目录名带 `competitive-report` / `battlecard` / `competitor` → 用户在做该方向竞品研究, 该垂直加权
    - 文件名/目录名暗示产品代号 → 读对应 `README.md` 第一段 + tagline 提取产品定位
    - 看 `CLAUDE.md` 注入的项目描述
