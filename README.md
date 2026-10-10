@@ -1,7 +1,7 @@
 # pm-daily-brief
 
-> **AI 产品经理每日情报简报 Claude Code Skill**
-> 一句"今天有啥新的" → 三源信号融合 + 用户画像加权 + TL;DR 60 秒摘要的精炼日报，Markdown + PDF 双格式
+> **AI 产品经理每日情报简报 Skill**（Claude Code / CodeBuddy）
+> 一句"今天有啥新的" → 三源信号融合 + 用户画像加权 + TL;DR 60 秒摘要的精炼日报，默认输出 Markdown（可选 PDF）
 
 [![Skill](https://img.shields.io/badge/Claude-Skill-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
@@ -11,11 +11,11 @@
 
 ## 它是什么
 
-在 Claude Code 里随手说一句——
+在 Claude Code / CodeBuddy 里随手说一句——
 
 > "今天有啥新的"
 
-——技能自动跑下面这套 9 步流水线，2-3 分钟产出一份给 **AI PM 喝咖啡时间** 看的精炼简报：
+——技能自动跑下面这套流水线，2-3 分钟产出一份给 **AI PM 喝咖啡时间** 看的精炼简报：
 
 - **⚡ TL;DR 60 秒摘要**（🚀 机会 / ⚠️ 风险 / 🌊 趋势 三行）
 - **🌟 Top 3-5 深读**（PM 视角拆解 + `🎯 今天具体动作` 1-2h 可执行下一步）
@@ -23,11 +23,11 @@
 - **🌶️ 高热度非 AI**（破圈热度 Top 3-5）
 - **🔭 今日观察**（跨源 pattern 综合段，3 段 punchline + 证据 + 影响）
 - **用户画像加权**（自动扫历史报告 + 项目文件，推断你在做什么，header 显式 surface 让你纠错）
-- **Markdown + PDF 双输出**，footer 带抓取耗时
+- **Markdown 单格式输出**（默认不出 PDF），footer 带抓取耗时
 
 不是"通用新闻聚合器"，是 **正在做 AI 产品的 PM 的私人情报官**——三源融合 + 个性化加权 + 跨源 pattern 综合，信号优先，噪音少。
 
-输出样例见 [`examples/2026-05-06.md`](examples/2026-05-06.md) / [`examples/2026-05-06.pdf`](examples/2026-05-06.pdf)。PDF 是成品交付物，Markdown 用于喂下游工具。
+输出样例见 [`examples/2026-05-06.md`](examples/2026-05-06.md)。默认交付 Markdown；PDF 已按用户需求取消（见 v4）。
 
 ---
 
@@ -46,7 +46,8 @@ AI 圈一天 50+ 新产品/repo/讨论，PM 没时间逐条看。市面上的 RS
 | 抓不到数据就编造 | 失败明确标注"⚠️ X 源抓取失败"，**绝不编造条目** |
 | 风险项写成"机会" | TL;DR `⚠️` 强制威胁视角（对手/技术/政策可能颠覆你），不是优化包装 |
 | 加权完全主导选品，新模型也漏 | **加权是 tie-breaker，不是 filter**——突破性非加权信号必入 |
-| 路径硬编码 `C:\Users\xxx` | `$HOME` / `cygpath` / `$USERPROFILE` 自检测，跨机器可移植 |
+| 分不清"淡日"与"抓取失败" | **健康度自检**（GH < 15 / PH < 10 / HN < 20 先标 warning） |
+| 路径硬编码 | 路径集中在 SKILL.md 顶部"配置"块，一处改全面生效 |
 
 底层赌注：**对个性化情报综合任务，prompt + LLM 推理 > scraper + 模板**，即使每次跑 2-3 分钟。
 
@@ -54,10 +55,10 @@ AI 圈一天 50+ 新产品/repo/讨论，PM 没时间逐条看。市面上的 RS
 
 ## 安装
 
-### 方法 1：克隆到 Claude Code 全局 skills 目录
+### 方法 1：克隆到全局 skills 目录
 
 ```bash
-# Windows PowerShell
+# Windows PowerShell（Claude Code 用 ~\.claude；CodeBuddy 用 ~\.codebuddy）
 git clone https://github.com/A-cat-with-carrots/pm-daily-brief-skill.git "$HOME\.claude\skills\pm-daily-brief"
 
 # macOS / Linux
@@ -72,20 +73,18 @@ mkdir -p .claude/skills
 git clone https://github.com/A-cat-with-carrots/pm-daily-brief-skill.git .claude/skills/pm-daily-brief
 ```
 
-重启 Claude Code（或新开会话），技能自动加载。
+重启会话，技能自动加载。
 
 ### 依赖
 
-- **Claude Code** with WebFetch tool
-- **gstack**（用于 `make-pdf` PDF 输出）：https://github.com/garrytan/gstack
-  - 装机：`git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup --team`
-  - 没装 gstack 也能跑，只产 Markdown，没 PDF
+- **支持 WebFetch 的 agent**（Claude Code / CodeBuddy 等）
+- **无需 gstack**：默认输出 Markdown，不生成 PDF。仅当你想恢复 PDF 时，才需要 `pandoc` + 一个无头浏览器（Chrome / Edge），见 SKILL.md Step 8。
 
 ---
 
 ## 用法
 
-在 Claude Code 里说一句：
+在 agent 里说一句：
 
 ```
 > 今天有啥新的
@@ -102,17 +101,17 @@ git clone https://github.com/A-cat-with-carrots/pm-daily-brief-skill.git .claude
 技能自动触发，按 9 步流程跑（每步给一行进度更新）：
 
 ```
-Step 1：确认日期 + 输出路径                 ─┐
-Step 2：并行 WebFetch PH/GH/HN（多 URL fallback）│
-Step 2.5：扫历史报告 + 项目文件 → 用户画像加权    ├─→ 2-3 分钟跑完
-Step 3：AI 过滤 + 三桶分类                       │
-Step 4：Top 3-5 深读（5 字段 + 🎯 今天具体动作）  │
-Step 4.5：TL;DR 提炼（🚀/⚠️/🌊 三行）            │
-Step 5：全列表加 [跟进/关注/噪音] triage tag      │
-Step 6：今日观察（3 段 pattern + 证据 + 影响）    │
-Step 7：写 Markdown                              │
-Step 8：调 gstack make-pdf 生成 PDF              │
-Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
+Step 1：确认日期 + 输出路径 + 时区提示            ─┐
+Step 2：并行 WebFetch PH/GH/HN（多 URL fallback + 健康度自检）│
+Step 2.5：扫历史报告 + 项目文件 → 用户画像加权       ├─→ 2-3 分钟跑完
+Step 3：AI 过滤 + 三桶分类 + 跨源合并                │
+Step 4：Top 3-5 深读（6 字段 + 🎯 今天具体动作）      │
+Step 4.5：TL;DR 提炼（🚀/⚠️/🌊 三行）               │
+Step 5：全列表加 [跟进/关注/噪音] triage tag          │
+Step 6：今日观察（3 段 pattern + 证据 + 影响）        │
+Step 7：写 Markdown                                   │
+Step 8：PDF（默认关闭，跳过）                          │
+Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）       ─┘
 ```
 
 ---
@@ -139,16 +138,18 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 - CLAUDE.md 注入 `currentDate` 优先，fallback 到 `date +%Y-%m-%d`
 - 跨午夜（差 > 12h）显式问用户用哪个日期
 - 同日重跑直接覆盖（用户每天调一次，重跑就是想要新版）
+- **时区提示（B2）**：三源全是美国时区，PH 按 PT 日重置；晚间跑 PH 是"盘中快照、未定榜"
 
 ### Step 2：并行 WebFetch 三源
 - 一回合发 3 个 WebFetch
-- PH/GH/HN 各拉 Top 20-30
+- PH/GH/HN 各拉 Top 20-30（实测 PH 常只回 ~10）
 - 明确要求"不要导航菜单噪音"——否则 WebFetch 也可能塞导航
+- **健康度自检（B1）**：GH < 15 / PH < 10 / HN < 20 → 先标 warning，别混当淡日
 
 ### Step 2.5：用户画像加权（**单一最大改进**）
-- **来源 1**：`Glob daily-input/*.md` 取最近 5 份，Grep `## 🌟 Top` + `## 🔭 观察` 段，提炼连续多日上 Top 的主题
-- **来源 2**：`Glob 项目根/*.{md,html}` 不递归，识别用户在做什么产品（`competitive-report` / `battlecard` 文件名 = 该垂直加权）
-- **不扫敏感目录**（`.git/` / `.env` / credentials）
+- **来源 1**：`Glob ${OUTPUT_DIR}/*.md` 取最近 5 份，Grep `## 🌟 Top` + `## 🔭 观察` 段，提炼连续多日上 Top 的主题
+- **来源 2**：`Glob WEIGHT_ROOTS` 各下钻一层（默认 `D:\Vibe_Project\*\*.{md,html}` + `D:\SYSU\实习\*\*.{md,html}`），识别用户在做什么产品（`competitive-report` / `battlecard` 文件名 = 该垂直加权）
+- **不扫敏感目录**（`.claude/` / `.git/` / `.env` / credentials）
 - 输出 `high-weight` / `mid-weight` 列表，**显式写到报告 header** 让 PM 纠错
 - **加权是 tie-breaker，不是 filter**——突破性非加权信号（新模型、政策事件）必入
 
@@ -158,12 +159,12 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 - 🌶️ **高热度非 AI**：单源 Top 3 或跨源出现
 - 🗑️ **丢弃**：中低热度非 AI
 
-不确定**倾向纳入**（漏比错严重）。
+不确定**倾向纳入**（漏比错严重）。**跨源合并（B3）**：同一件事跨源出现就合并成一条、标多源，避免重复计数。
 
 ### Step 4：Top 3-5 深读
 **硬约束：凑不出 5 条强的就只写 3 条，不补位降标准。**
 
-每条 5 字段：
+每条 6 字段：
 - **是什么**（PM 视角不是开发者视角）
 - **差异化**（vs 现有方案）
 - **技术/打法**
@@ -174,7 +175,7 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 **抓取策略**：默认基于 tagline + PM 知识写，仅 1-2 条真高价值的 WebFetch 补原文（HN >300pts 长文 / 政策事件类）。
 
 ### Step 4.5：TL;DR（60 秒摘要）
-3 行各 ≤ 30 字：
+放在报告最上方（header 之后、Top 之前），3 行各 ≤ 30 字：
 - **🚀 机会**：跟用户做的事最相关的最强信号
 - **⚠️ 风险**：威胁视角（对手/技术/政策可能颠覆你），**禁止包装成机会**
 - **🌊 趋势**：跨源浮出的最强 pattern
@@ -185,7 +186,7 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 - `[关注]` ← 相关但非急
 - `[噪音]` ← 列出供完整性，可跳
 
-每段 `[跟进]` ≤ 5 条（跟进太多等于没跟进）。
+每段 `[跟进]` **硬上限 ≤ 5 条（B4）**：超过按信号强度排序只留前 5，多出的降级为 `[关注]`。
 
 ### Step 6：今日观察
 **整篇最有价值的部分**。3 段（不是 4 段，4 段稀释）：
@@ -193,10 +194,9 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 - 后接 2 句证据 + 1 句对用户产品的影响
 - 基于真实数据，**禁止"AI 在加速"这种废话**
 
-### Step 7-9：写 MD → 生成 PDF → 汇报
-- `gstack make-pdf` 调本地二进制（skill 调用慢，直接 bash）
-- `$HOME` / `cygpath` / `$USERPROFILE` 自检测，**不硬编码 `C:\Users\xxx`**
-- PDF 失败不阻塞 MD 交付，报告"PDF 生成失败，md 已就绪"
+### Step 7-9：写 MD → 汇报
+- 写入 `${OUTPUT_DIR}\YYYY-MM-DD.md`
+- **Step 8 PDF 默认跳过**（用户不需要）；若恢复：用 pandoc + 无头浏览器，**不依赖 gstack**
 - 汇报含三源抓取数 + 抓取耗时 + TL;DR 三行浓缩
 
 ---
@@ -234,7 +234,7 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 ...
 
 ---
-*生成时间: ... | 抓取耗时: Xm Ys | 抓取源: PH/GH/HN | skill: pm-daily-brief v3*
+*生成时间: ... | 抓取耗时: Xm Ys | 抓取源: PH/GH/HN | skill: pm-daily-brief v4*
 ```
 
 ---
@@ -253,24 +253,25 @@ Step 9：终端汇报（路径 + 抓取数 + 耗时 + TL;DR）  ─┘
 
 ## 自定义
 
-技能默认硬编码 `D:\hrdai\daily-input\` 输出路径，给 fork 用户改：
+**v4 起所有路径集中在 `SKILL.md` 顶部「配置」块**，改一处即可：
+
+```
+- OUTPUT_DIR  = D:\hrdai\daily-input        # 日报输出 + 历史报告
+- WEIGHT_ROOTS = [D:\Vibe_Project\*\*.{md,html}, D:\SYSU\实习\*\*.{md,html}]  # 画像扫描根，各下钻一层
+- 输出格式 = 仅 Markdown
+```
 
 ### 1. 输出路径
-`SKILL.md` Step 1，改 `D:\hrdai\daily-input\` 为你的项目根。
+改「配置」块的 `OUTPUT_DIR`。
 
 ### 2. 用户画像加权来源（Step 2.5）
-默认读：
-- 最近 `daily-input/*.md`（你过去的报告）
-- 两个项目根各下钻一层：`D:\Vibe_Project\*\*.{md,html}`（AI 产品项目）+ `D:\SYSU\实习\*\*.{md,html}`（求职/简历/JD 材料）
-
-改 Glob 根到你的工作区。**不要指向 `node_modules/` 或带敏感数据目录**——技能已显式跳 `.git/` `.env` credentials。
+改「配置」块的 `WEIGHT_ROOTS`（多个根、各下钻一层）。**不要指向 `node_modules/` 或带敏感数据目录**——技能已显式跳 `.claude/` `.git/` `.env` credentials。
 
 ### 3. 输出语言
 默认中文+英文术语。要切英文：改 SKILL.md "写作风格" 段 + 输出模板表头。
 
-### 4. PDF 二进制路径（Windows）
-v3 起 `SKILL.md` Step 8 已自检测 `$HOME` + `cygpath`，**无用户名硬编码**。
-gstack 装在非默认位置就改 `P=` 和 `BROWSE_BIN=` 两行。
+### 4. 恢复 PDF（可选，默认关闭）
+v4 起默认不出 PDF。若要恢复：**不要装/依赖 gstack**（其路径写死 `~/.claude`，在 CodeBuddy 环境会错位）；用 SKILL.md Step 8 的 **pandoc + 无头浏览器** 方案（本机 Chrome/Edge 均可）。
 
 ### 5. 加源
 当前 PH + GH + HN。要加 Reddit/Twitter/arxiv：Step 2 加一个并行 WebFetch + 抽取 prompt。
@@ -281,12 +282,11 @@ gstack 装在非默认位置就改 `P=` 和 `BROWSE_BIN=` 两行。
 
 ```
 pm-daily-brief/
-├── SKILL.md                # 主入口（9 步编排 + 输出模板 + 写作风格 + 失败模式）
+├── SKILL.md                # 主入口（配置块 + 9 步编排 + 输出模板 + 写作风格 + 失败模式）
 ├── README.md               # 本文件
 ├── LICENSE                 # MIT
 └── examples/
-    ├── 2026-05-06.md       # 真实跑出来的样例
-    └── 2026-05-06.pdf
+    └── 2026-05-06.md       # 真实跑出来的样例（旧版，含 PDF 演示）
 ```
 
 ---
@@ -309,8 +309,9 @@ pm-daily-brief/
 - **WebFetch quota**：3 并行 + 1-2 deep-read + 偶尔 WebSearch ≈ 5-7 net call，日内多次跑可能撞限额
 - **PH 反爬**：`/browse`（headless Chromium）被 Cloudflare ban，**不是 fallback 路径**
 - **GH 偶尔截断**：有时只拿到 15/25 trending repo，header 标 count，截断严重时回退到 `/trending` 或 weekly
+- **PH 常只回 ~10 条**：leaderboard 首屏约 10，拿不到 20 属正常
 - **无跨日趋势追踪**：每份报告独立，跨日 pattern 追踪需结构化存储（v1 explicit 不要）
-- **单用户**：默认输出路径 `D:\hrdai\daily-input\` 硬编码，二进制路径已自检测——按 [自定义](#自定义) 改输出路径
+- **单用户**：输出/扫描路径集中在 SKILL.md 顶部「配置」块，按 [自定义](#自定义) 改
 
 ---
 
@@ -318,17 +319,23 @@ pm-daily-brief/
 
 - **v1**：`/browse` 主路径（被 PH Cloudflare 挡 + GH 噪音），无加权，Top 5 硬凑
 - **v2**：WebFetch 主路径，加 Step 2.5 用户上下文加权（**单一最大改进**——把通用 RSS 摘要变成个性化简报），Top 3-5 + 不补位硬约束，PDF 生成
-- **v3**（当前）：PM 体验大改
+- **v3**：PM 体验大改
   - **TL;DR 60 秒摘要**（🚀/⚠️/🌊 三行），喝咖啡时间可用
   - **`🎯 今天具体动作`** 字段——每条 PM takeaway 必带 1-2h 可执行下一步，写不出就省略（禁止"持续关注"）
   - **`[跟进/关注/噪音]` triage tag**——36 条 AI 全列表 10 秒扫读
   - **加权列表 surface 到 header**（之前内部用），PM 能纠错
   - **多 URL fallback** 替换无效 `/browse` fallback
-  - **路径自检测**——去 `C:\Users\xxx` 用户名硬编码
-  - **bash + PowerShell 双 shell** PDF 命令
   - **抓取耗时 footer**
   - **观察段 4 段 → 3 段**（4 段稀释信号）
-  - **TL;DR 风险项强制威胁视角**（对手/技术/政策颠覆你），禁止优化包装
+- **v4**（当前）：
+  - **顶部「配置」块**——所有路径集中一处（输出目录 + 画像扫描根），不再散落硬编码
+  - **默认仅 Markdown，取消 PDF 步骤**——去掉 gstack 依赖（保留 pandoc + 无头浏览器回退），跨机器可跑
+  - **画像扫描改双根各下钻一层**（适配项目文档在子目录的情况）
+  - **健康度自检（B1）**——条数偏低先标 warning，区分淡日/抓取失败
+  - **运行时时区提示（B2）**——提示 PH 晚间可能是"未定榜"
+  - **跨源合并（B3）**——同一事件跨源只算一条
+  - **`[跟进]` 硬上限（B4）**
+  - 隐私提醒（画像根含简历/JD）+ 字段数/语病等措辞修正
 
 ---
 
@@ -337,17 +344,17 @@ pm-daily-brief/
 PR 欢迎。重点方向：
 
 - **加源**（Reddit / Twitter / arxiv / Anthropic blog / OpenAI announcement RSS）
-- **跨日趋势追踪**（v1 explicit out of scope，v3 验明价值后可重启）
-- **健康度阈值**（GH < 15 或 PH < 10 时警告抓取失败 vs 真清淡日）
-- **`[跟进]` budget 硬限制**（当前软 ≤ 5/源，无 hard fail）
+- **跨日趋势追踪**（v1 explicit out of scope，可重启）
 - **PH 详情页规范化**（Step 2 prompt 要 canonical URL，但 PH 详情页抽取偶尔返回 `/products/<slug>` 而非官网）
+
+（v4 已落地原本列在这的"健康度阈值"与"`[跟进]` budget 硬限制"。）
 
 ---
 
 ## 致谢
 
 - skill 脚手架：[Anthropic skill-creator](https://github.com/anthropics/skills/tree/main/skill-creator)
-- 浏览器 + PDF 工具链：[gstack](https://github.com/garrytan/gstack)
+- PDF 回退工具链：pandoc + 无头浏览器（gstack 为可选，v4 起默认不用）
 - skill review 流程灵感：skill-creator eval loop
 
 ---

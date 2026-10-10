@@ -1,11 +1,22 @@
 ---
 name: pm-daily-brief
-description: AI产品经理每日情报简报。手动每天调用一次,自动抓取当天 ProductHunt 榜单、GitHub Trending(daily)、Hacker News 热门,以 AI 相关为主、其他破圈热度也带,会读用户最近报告 + 项目文件做主题加权,混合深度(全列表一句话 + Top 3-5 深读),自主补充相关资讯,中文 Markdown + PDF 双格式输出到 D:\hrdai\daily-input\YYYY-MM-DD.{md,pdf}。Use when 用户说"今天有啥新的"、"今天 AI 圈"、"AI 日报"、"每日简报"、"daily brief"、"刷一下今天"、"行业热点"、"今天值得看的"、"产品情报"、"PM brief"、"今天有什么新产品"、"扫一下今天",或调用 /pm-daily-brief。
+description: AI产品经理每日情报简报。手动每天调用一次,自动抓取当天 ProductHunt 榜单、GitHub Trending(daily)、Hacker News 热门,以 AI 相关为主、其他破圈热度也带,会读用户最近报告 + 项目文件做主题加权,混合深度(全列表一句话 + Top 3-5 深读),自主补充相关资讯,输出中文 Markdown 日报。Use when 用户说"今天有啥新的"、"今天 AI 圈"、"AI 日报"、"每日简报"、"daily brief"、"刷一下今天"、"行业热点"、"今天值得看的"、"产品情报"、"PM brief"、"今天有什么新产品"、"扫一下今天",或调用 /pm-daily-brief。
 ---
 
 # PM Daily Brief
 
 为 AI 产品经理生成每日情报简报。目标读者: 你自己。目标用途: 30 分钟内吸收当天产品/技术/趋势信号,辅助产品决策。
+
+## 配置(路径只在这里改)
+
+下文所有路径都引用这里的变量,要换位置只改这一块。
+
+- **输出目录** `OUTPUT_DIR = D:\hrdai\daily-input` —— 日报 md 输出 + 历史报告所在
+- **画像扫描根** `WEIGHT_ROOTS`(各下钻一层):
+  - `D:\Vibe_Project\*\*.{md,html}`(AI 产品项目)
+  - `D:\SYSU\实习\*\*.{md,html}`(求职/简历/JD 材料)
+- **输出格式** = **仅 Markdown**(用户不需要 PDF,已取消 PDF 步骤)
+- **日期** = 系统当前日期
 
 ## 触发与定位
 
@@ -30,10 +41,11 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
 ### Step 1: 确认日期与输出路径
 
 - 日期: 优先用 CLAUDE.md 注入的 `currentDate`,fallback 到 `date +%Y-%m-%d` (bash,跨平台)。Windows-only 环境也可用 PowerShell `Get-Date -Format yyyy-MM-dd`。**若两者差超过 12 小时(跨午夜调用), 显式问用户用哪个日期。**
-- 输出: `D:\hrdai\daily-input\YYYY-MM-DD.md`
-- **覆盖策略**: 文件已存在直接覆盖, 不要问用户、不要 diff (用户每天调一次, 同日重跑就是想要新版本)。Step 8 汇报时若覆盖了同日旧版, 一句话提示"(覆盖了 N 分钟前的同日报告)"。
+- 输出: `${OUTPUT_DIR}\YYYY-MM-DD.md`(仅 md,无 PDF)
+- **覆盖策略**: 文件已存在直接覆盖, 不要问用户、不要 diff (用户每天调一次, 同日重跑就是想要新版本)。Step 9 汇报时若覆盖了同日旧版, 一句话提示"(覆盖了 N 分钟前的同日报告)"。
+- **运行时间提示(B2)**: 三源全是美国时区, PH 按美西(PT)日重置。若在北京晚间跑(≈美西清晨), PH 当日榜只是"盘中快照、尚未定榜"——PH 段注明"未定榜"; 想要定榜数据, 在北京上午跑(覆盖刚结束的整个美国日)。
 
-记录 `START_TS=$(date +%s)`,Step 8 计算抓取耗时。
+记录 `START_TS=$(date +%s)`,Step 9 计算抓取耗时。
 
 ### Step 2: 抓取三源(WebFetch 优先,多 URL 重试)
 
@@ -46,7 +58,7 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
 
 1. **ProductHunt 当日 leaderboard**
    - URL: `https://www.producthunt.com/leaderboard/daily/YYYY/M/D` (注意月份不补零, e.g. `/2026/5/6`)
-   - prompt 要求: 每个产品返回名称、tagline、upvotes、tags、PH 链接、**产品官网链接(从详情页抓)**, top 20。
+   - prompt 要求: 每个产品返回名称、tagline、upvotes、tags、PH 链接、**产品官网链接(从详情页抓)**, top 20。(实测首屏常只回 ~10 条, 拿不到 20 也正常)
 2. **GitHub Trending (daily)**
    - URL: `https://github.com/trending?since=daily`
    - prompt 要求: 每个 repo 返回 owner/repo、完整 GitHub URL、描述、语言、总 stars、当日 stars。**明确要求"不要包含导航菜单或语言选择器"** — 否则 WebFetch 也可能塞导航。Top 25。
@@ -64,6 +76,8 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
 
 任一源最终全失败,报告头部标"⚠️ X 源抓取失败 (尝试: 主+fallback1+fallback2)",**绝不编造条目**。
 
+**健康度自检(B1)**: 抓完给三源条数打分——GH < 15 / PH < 10 / HN < 20 视为偏低。偏低时先在 header 标"⚠️ 抓取偏少(可能反爬或真淡日)", 再决定是否触发 fallback。**别把"抓取失败"当"淡日"混过去**; 周末本就偏淡, 可接受。
+
 **WebFetch quota 注意**: 三源并行 + Step 4 的 1-2 次 deep-read fetch + 偶尔 Step 4.5 WebSearch ≈ 5-7 次 net call。日内多次跑可能撞限额。撞了直接跳过补充, 用已抓数据出报告。
 
 ### Step 2.5: 读用户上下文(主题加权依据)
@@ -72,11 +86,11 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
 
 **读两类来源**:
 
-1. **最近 3-5 份 daily brief**: `Glob D:\hrdai\daily-input\*.md`, 取最近 5 个(按文件名日期排), Grep 它们的 `## 🌟 Top 3-5 深读` 段标题 + `## 🔭 今日观察` 段。
+1. **最近 3-5 份 daily brief**: `Glob ${OUTPUT_DIR}\*.md`, 取最近 5 个(按文件名日期排), Grep 它们的 `## 🌟 Top 3-5 深读` 段标题 + `## 🔭 今日观察` 段。
    - 提炼: 哪些主题连续多日上 Top? (e.g. agent 经济、context 工程、voice agent)
    - 提炼: 用户最近反复出现的关键词?
 
-2. **项目根快扫** (两个根, 各下钻一层):
+2. **项目根快扫** (WEIGHT_ROOTS, 各下钻一层, 见顶部配置):
    - `Glob D:\Vibe_Project\*\*.{md,html}` — 用户的 AI 产品项目 (Ponder 购物 Agent / AskData Text2SQL / 经历库 / RAG 等), 识别在做什么产品
    - `Glob D:\SYSU\实习\*\*.{md,html}` — 求职/简历/面试/JD 材料, 对"求职·HR·AI 岗位"主题加权
    - 跳过 `.claude/` `.git/` `node_modules/` 等敏感/噪声目录
@@ -85,6 +99,8 @@ description: AI产品经理每日情报简报。手动每天调用一次,自动�
    - 看 `CLAUDE.md` 注入的项目描述
 
 **不要扫描敏感目录** (`.git/`, `.env`, credentials)。如果 Glob 误中, 跳过不读。
+
+⚠️ **隐私提醒**: `WEIGHT_ROOTS` 里的 `D:\SYSU\实习` 含个人敏感材料(简历/JD)。报告默认私有; 一旦要分享, 必须先脱敏(见"输出语境")。
 
 第一次跑 (`daily-input/` 还没历史) 跳过来源 1, 只用项目文件。
 
@@ -112,13 +128,15 @@ mid-weight: ["voice agent", "video gen", "Skills/插件分发"]
 
 判定不确定时倾向**纳入**(漏比错严重)。AI 判定基于描述语义,不只关键词 — 比如一个"chrome extension for X"如果 X 是 AI 用例,算 AI。
 
+**跨源合并(B3)**: 同一件事跨源出现(例: 一个 repo 同时在 GH 和 HN) → **合并成一条**, 标注多源(如 `GH+HN`), 避免重复计数。合并后的信号强度更高, Top 选品时优先考虑。
+
 ### Step 4: Top 3-5 深读
 
 从三桶里挑 **3 到 5 条最值得 PM 关注** 的(优先 AI 核心 + Step 2.5 high-weight 主题, 看产品差异化/技术新颖度/赛道动向, 不只看热度)。
 
 **硬约束**: **凑不出 5 条强的就只写 3 条, 不要为补位降标准。**今天可能就是只有 2-3 个真信号, 那就 3 条; 偶尔信号特别多也可以 4-5。第 4、5 条的 PM takeaway 写不出洞见时, 直接把它降级到全列表去, 不要硬凑泛话。
 
-每条提炼 5 个字段(`🎯 今天具体动作` 凑不出就空着, 不要硬写"持续关注"这种废话):
+每条提炼 6 个字段(`🎯 今天具体动作` 凑不出就空着, 不要硬写"持续关注"这种废话):
 
 - **是什么** (1-2 句, PM 视角不是开发者视角)
 - **差异化** (vs 现有方案有什么新)
@@ -138,11 +156,11 @@ mid-weight: ["voice agent", "video gen", "Skills/插件分发"]
 
 ### Step 4.5: TL;DR 提炼 (60 秒摘要)
 
-写 Top 3-5 之后、之前的 header 之后,产出 **TL;DR 段**:
+在 header 之后、Top 3-5 之前产出 **TL;DR 段**(放到报告最上方, 让 PM 60 秒读完决定要不要往下读):
 
 - **🚀 机会** (一句话, 跟用户做的事最相关的最强信号)
 - **⚠️ 风险** (一句话, 该警觉的对手/技术/政策, 强调威胁性而非机会)
-- **🌊 趋势** (一句话, 跨源浮出的最强 pattern, 通常 Step 5 观察段第一段的 punchline)
+- **🌊 趋势** (一句话, 跨源浮出的最强 pattern, 通常 Step 6 观察段第一段的 punchline)
 
 **为什么必须有**: PM 喝咖啡时间内就该知道今天有没有大事。3 行 60 秒读完, 决定要不要往下读全文。如果 TL;DR 写不出"风险"项, 想想是不是真的没风险还是没认真找 — 大多数日子都有。
 
@@ -159,7 +177,7 @@ mid-weight: ["voice agent", "video gen", "Skills/插件分发"]
 - 加权 mid-weight 或非加权但技术新颖 = `[关注]`
 - 非 AI / 工具类 / 主题分散 = `[噪音]`
 
-每个全列表段(PH / GH / HN)的 `[跟进]` 应当 ≤ 5 条 — 跟进太多等于没跟进。
+每个全列表段(PH / GH / HN)的 `[跟进]` **硬上限 ≤ 5 条(B4)**: 超过就按信号强度排序只留前 5, 多出来的降级为 `[关注]`。跟进太多等于没跟进。
 
 ### Step 6: 今日观察(综合段)
 
@@ -177,58 +195,20 @@ mid-weight: ["voice agent", "video gen", "Skills/插件分发"]
 
 ### Step 7: 写 Markdown 文件
 
-写入 `D:\hrdai\daily-input\YYYY-MM-DD.md`,严格按 [输出模板](#输出模板) 结构。
+写入 `${OUTPUT_DIR}\YYYY-MM-DD.md`,严格按 [输出模板](#输出模板) 结构。
 
-### Step 8: 生成 PDF (用 gstack make-pdf)
+### Step 8: PDF(默认关闭, 跳过)
 
-直接调 gstack make-pdf 二进制 (skill 调用太慢, 直接 bash)。
+**用户不需要 PDF —— 直接跳到 Step 9, 只交付 Markdown。** 顶部"配置"已设"仅 Markdown", 此步默认不执行。
 
-**自检测路径** (避免硬编码用户名):
+若将来要恢复 PDF: **不要依赖 gstack**(本机未装, 且其路径写死 `~/.claude/skills/gstack`, 在 CodeBuddy(`~/.codebuddy`)环境会错位)。用 **pandoc + 无头浏览器** 回退(已实测可行):
 
-```bash
-# bash / git bash on Windows
-USER_HOME_WIN="$(cygpath -w "$HOME" 2>/dev/null || echo "$USERPROFILE")"
-P="$HOME/.claude/skills/gstack/make-pdf/dist/pdf"
-export BROWSE_BIN="${USER_HOME_WIN}\\.claude\\skills\\gstack\\browse\\dist\\browse.exe"
-
-DATE="2026-05-06"  # replace with $TODAY
-"$P" generate \
-  "D:/hrdai/daily-input/${DATE}.md" \
-  "D:/hrdai/daily-input/${DATE}.pdf" \
-  --title "AI PM Daily Brief — ${DATE}" \
-  --author "AI PM" \
-  --date "${DATE}" \
-  --no-confidential
-```
-
-**PowerShell 等价命令** (在 PS 跑):
-```powershell
-$P = "$HOME\.claude\skills\gstack\make-pdf\dist\pdf.exe"
-$env:BROWSE_BIN = "$HOME\.claude\skills\gstack\browse\dist\browse.exe"
-$DATE = "2026-05-06"
-& $P generate `
-  "D:/hrdai/daily-input/${DATE}.md" `
-  "D:/hrdai/daily-input/${DATE}.pdf" `
-  --title "AI PM Daily Brief — ${DATE}" `
-  --author "AI PM" `
-  --date $DATE `
-  --no-confidential
-```
-
-**Windows 踩坑** (实测 2026-05-06):
-1. **必须用 `.exe`**: `BROWSE_BIN` 指向 `browse.exe`,不能是裸 `browse`(虽然文件存在,make-pdf 的 `which browse` 找不到)。用反斜杠 Windows 路径。
-2. **位置参数顺序**: `generate <input> <output> --flags`。flag 放后面,否则 `--date YYYY-MM-DD` 会吞掉位置参数。
-3. **`--no-confidential` flag**: 需要 make-pdf ≥ 2026-05 版。老版没此 flag 会报错, 升级 gstack 或去掉 flag (会带 CONFIDENTIAL 角标)。
-
-设置:
-- `--no-confidential` 去掉默认 CONFIDENTIAL 角标(简报不需要)
-- 不加 `--cover` 不加 `--watermark`(简报直入正文)
-- 默认已有页码 + running header,够用
-
-**失败处理**: 报告"PDF 生成失败,md 已就绪",**不要阻塞 md 交付**。常见失败:
-- `browse binary not found` → 检查 BROWSE_BIN env 是否设了 `.exe` 后缀
-- `input file not found` (但其实是 output 路径) → flag 顺序错,改成 `generate input output --flags`
-- `unknown flag --no-confidential` → make-pdf 版本太老, `gstack-upgrade` 或去掉该 flag
+1. markdown → 带样式 HTML:
+   `pandoc <md> -o <html> --standalone --embed-resources --metadata title="AI PM Daily Brief — <DATE>" --css=<style.css>`
+2. HTML → PDF(Chrome 或 Edge, 本机都有):
+   `chrome --headless=new --disable-gpu --no-sandbox --user-data-dir=<tmp> --print-to-pdf=<pdf> --no-pdf-header-footer "file:///<html>"`
+   (chrome 会打几条扩展加载 ERROR, 忽略即可; 跑完删掉 `<tmp>`)
+3. 中文字体走系统字体, 无需额外配置。
 
 ### Step 9: 汇报
 
@@ -238,7 +218,7 @@ ELAPSED=$(( END_TS - START_TS ))
 ```
 
 给用户终端汇报:
-- md 路径 + pdf 路径(若成功)
+- md 路径(仅 md, 无 PDF)
 - 三源抓取数 + 抓取耗时(如"PH 20 / GH 25 / HN 30, 共 2m 18s")
 - 入选条目数
 - TL;DR 三句的浓缩(从 Step 4.5 直接复制 🚀/⚠️/🌊 三行)
@@ -306,7 +286,7 @@ ELAPSED=$(( END_TS - START_TS ))
 - [产品名](链接) — 一句话, 为什么单提 (例: 直撞 [vertical-X] 竞品调研)
 
 ---
-*生成时间: YYYY-MM-DD HH:mm | 抓取耗时: Xm Ys | 抓取源: PH/GH/HN | skill: pm-daily-brief v3*
+*生成时间: YYYY-MM-DD HH:mm | 抓取耗时: Xm Ys | 抓取源: PH/GH/HN | skill: pm-daily-brief v4*
 ```
 
 ## 写作风格
@@ -331,7 +311,8 @@ ELAPSED=$(( END_TS - START_TS ))
 - **TL;DR 风险项写成机会** — ⚠️ 必须是威胁视角(对手在做什么、什么会颠覆你)而非"机会"。
 - **加权完全主导选品** — Step 2.5 加权是 tie-breaker, 不是 filter。突破性的非加权信号(新模型发布、政策事件)必须保留。
 - **跨午夜调用日期错乱** — Step 1 已加: CLAUDE.md vs 系统时间差超 12 小时显式问。
-- **用户名硬编码** — Step 8 命令必须用 `$HOME` / `cygpath` / `$USERPROFILE` 自检测, 不写死 `C:\Users\xxx`。
+- **不分"淡日"与"抓取失败"** — Step 2 健康度自检(B1): 条数偏低先在 header 标注, 别当正常淡日。
+- **路径硬编码** — 所有输出/扫描路径引用顶部"配置"块, 不散落写死; 恢复 PDF 也别依赖 gstack, 用 pandoc + 无头浏览器。
 
 ## 测试与迭代
 
@@ -341,4 +322,5 @@ skill 输出偏主观,无固定正确答案。用户跑后给反馈,迭代调整
 
 - **v1**: `/browse` 主路径(被 PH Cloudflare 挡 + GH 噪音), 无加权, Top 5 硬凑。
 - **v2**: WebFetch 主路径, 加 Step 2.5 用户上下文加权(单一最大改进), Top 3-5 + 不补位硬约束, PDF 生成。
-- **v3** (当前): 加 TL;DR 60秒摘要(机会/风险/趋势), `🎯 今天具体动作` 字段, 全列表 `[跟进/关注/噪音]` triage tag, header 显式 surface 加权列表, 多 URL fallback 替换无效 /browse fallback, 路径自检测(去硬编码用户名), 双 shell PDF 命令, 抓取耗时 footer。
+- **v3**: 加 TL;DR 60秒摘要(机会/风险/趋势), `🎯 今天具体动作` 字段, 全列表 `[跟进/关注/噪音]` triage tag, header 显式 surface 加权列表, 多 URL fallback 替换无效 /browse fallback, 路径自检测(去硬编码用户名), 双 shell PDF 命令, 抓取耗时 footer。
+- **v4** (当前): 顶部加"配置"块集中所有路径(输出目录 + 画像扫描根); **默认仅 Markdown,取消 PDF 步骤**并去掉 gstack 依赖(留 pandoc + 无头浏览器回退); 画像扫描改为双根各下钻一层; 加抓取健康度自检(B1)、运行时时区提示(B2)、跨源合并(B3)、`[跟进]` 硬上限(B4); 隐私提醒; 修字段数/语病等措辞。
